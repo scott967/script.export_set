@@ -28,23 +28,24 @@ import xbmc
 import xbmcaddon
 import xbmcgui
 
-SIF = None
+MSIF = None
 CSV = None
+CSV_MSIF = None
 try:
     ADDON = xbmcaddon.Addon()
     ADDON_ID = ADDON.getAddonInfo('id')
-    SIF = Path(simplejson.loads(xbmc.executeJSONRPC(
+    MSIF = Path(simplejson.loads(xbmc.executeJSONRPC(
                 '{"jsonrpc":"2.0", "method":"Settings.GetSettingValue", "params":{"setting":"videolibrary.moviesetsfolder"}, "id":1}'))['result']['value'])
-    if (SIF is None) or (not SIF.name):
+    if (MSIF is None) or (not MSIF.name):
         xbmcgui.Dialog().ok(ADDON_ID, ADDON.getLocalizedString(32001))
-        SIF = None
+        MSIF = None
         xbmc.log(f'{ADDON_ID} invalid or no movie set info folder', xbmc.LOGWARNING)
         raise ValueError
 except simplejson.JSONDecodeError:
     CSV = Path('C:/Video3') / 'sets3.csv'
+    CSV_MSIF = Path('x:/Movie Set Art')
 except ValueError:
     CSV = None
-
 
 ELEMENTS = ['title', 'overview', 'originaltitle']
 
@@ -66,25 +67,28 @@ def get_ET_trees(source, overwrite=False):
         ET.indent(tree, space="\t", level=0)
         if CSV:
             try:
-                tree.write(Path('x:/Movie Set Art') / row[1] / 'set.xml', encoding='utf-8', xml_declaration=True)
+                (CSV_MSIF / row[1]).mkdir(exist_ok=True)
+                tree.write(CSV_MSIF / row[1] / 'set.nfo', encoding='utf-8', xml_declaration=True)
             except IOError as err:
-                print(f'Could not write set.xml file due to {err}')
-        elif SIF:
+                print(f'Could not write set.nfo file from row {row} due to {err}')
+            except IndexError:
+                print(f'Index error for row {row}')
+        elif MSIF:
             try:
-                (SIF / row[1]).mkdir(exist_ok=True)
-                if overwrite or not ((SIF / row[1]) / 'set.xml').is_file():
-                    tree.write((SIF / row[1]) / 'set.xml', encoding='utf-8', xml_declaration=True)
+                (MSIF / row[1]).mkdir(exist_ok=True)
+                if overwrite or not ((MSIF / row[1]) / 'set.nfo').is_file():
+                    tree.write((MSIF / row[1]) / 'set.nfo', encoding='utf-8', xml_declaration=True)
             except IOError as err:
-                print(f'Could not write set.xml file due to {err}')
+                print(f'Could not write set.nfo file due to {err}')
 
 def export_set_data(sif:Path=None, csv_file:Path=None):
-    """retrieves set data from library and creates set.xml
+    """retrieves set data from library and creates set.nfo
     """
     if csv_file:
-        with open(csv_file, encoding='utf-8') as source:
+        with open(csv_file, 'r', encoding='utf-8', newline='') as source:
             source_reader = csv.reader(source, delimiter='|')
             print(f'script.export_set export_set_data csv: {source_reader}', xbmc.LOGDEBUG)
-            get_ET_trees(source_reader)
+            get_ET_trees(source_reader, overwrite=True)
     if sif:
         replace_xml = xbmcgui.Dialog().yesno(ADDON_ID, ADDON.getLocalizedString(32004))
         response = simplejson.loads(xbmc.executeJSONRPC(
@@ -96,15 +100,15 @@ def export_set_data(sif:Path=None, csv_file:Path=None):
             get_ET_trees(lib_rows, overwrite=replace_xml)
 
 if __name__ == '__main__':
-    if SIF:
-        export_set_data(sif=SIF)
+    if MSIF:
+        export_set_data(sif=MSIF)
         xbmcgui.Dialog().notification(ADDON_ID, ADDON.getLocalizedString(32002))
     elif CSV:
         CSV = Path('C:/Video3/sets3.csv')
         export_set_data(csv_file=CSV)
     else:
         try:
-            xbmc.log('script.export_set no valid CSV or SIF setting in Kodi', xbmc.LOGWARNING)
+            xbmc.log('script.export_set no valid CSV or MSIF setting in Kodi', xbmc.LOGWARNING)
             xbmcgui.Dialog().notification(ADDON_ID, ADDON.getLocalizedString(32003))
         except Exception:
-            print('script.export_set no valid CSV or SIF setting in Kodi')
+            print('script.export_set no valid CSV or MSIF setting in Kodi')
