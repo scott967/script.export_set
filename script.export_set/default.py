@@ -36,7 +36,7 @@ try:
     SIF = Path(simplejson.loads(xbmc.executeJSONRPC(
                 '{"jsonrpc":"2.0", "method":"Settings.GetSettingValue", "params":{"setting":"videolibrary.moviesetsfolder"}, "id":1}'))['result']['value'])
     if not SIF:
-        xbmcgui.Dialog().ok(ADDON_ID, xbmc.getLocalizedString(32001))
+        xbmcgui.Dialog().ok(ADDON_ID, ADDON.getLocalizedString(32001))
     xbmc.log(f'{ADDON_ID} SIF Path {SIF}', xbmc.LOGDEBUG)
 except simplejson.JSONDecodeError:
     CSV = Path('C:/Video3') / 'sets3.csv'
@@ -91,13 +91,13 @@ def export_set_data(sif:Path=None, csv_file:Path=None):
 if __name__ == '__main__':
     if SIF:
         export_set_data(sif=SIF)
-        xbmcgui.Dialog().notification(ADDON_ID, xbmc.getLocalizedString(32002))
+        xbmcgui.Dialog().notification(ADDON_ID, ADDON.getLocalizedString(32002))
     elif CSV:
         CSV = Path('C:/Video3/sets3.csv')
         export_set_data(csv_file=CSV)
     else:
         try:
             xbmc.log('script.export_set no valid CSV or SIF setting in Kodi', xbmc.LOGWARNING)
-            xbmcgui.Dialog().notification(ADDON_ID, xbmc.getLocalizedString(32003))
+            xbmcgui.Dialog().notification(ADDON_ID, ADDON.getLocalizedString(32003))
         except Exception:
             print('script.export_set no valid CSV or SIF setting in Kodi')
