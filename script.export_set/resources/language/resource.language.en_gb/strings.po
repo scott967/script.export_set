@@ -29,7 +29,7 @@ msgid "Export failed"
 msgstr ""
 
 msgctxt "#32004"
-msgid "Export failed"
+msgid "Overwrite existing set.nfo files?"
 msgstr ""
 
 msgctxt "#32005"

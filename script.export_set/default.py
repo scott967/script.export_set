@@ -35,15 +35,20 @@ try:
     ADDON_ID = ADDON.getAddonInfo('id')
     SIF = Path(simplejson.loads(xbmc.executeJSONRPC(
                 '{"jsonrpc":"2.0", "method":"Settings.GetSettingValue", "params":{"setting":"videolibrary.moviesetsfolder"}, "id":1}'))['result']['value'])
-    if not SIF:
+    if (SIF is None) or (not SIF.name):
         xbmcgui.Dialog().ok(ADDON_ID, ADDON.getLocalizedString(32001))
-    xbmc.log(f'{ADDON_ID} SIF Path {SIF}', xbmc.LOGDEBUG)
+        SIF = None
+        xbmc.log(f'{ADDON_ID} invalid or no movie set info folder', xbmc.LOGWARNING)
+        raise ValueError
 except simplejson.JSONDecodeError:
     CSV = Path('C:/Video3') / 'sets3.csv'
+except ValueError:
+    CSV = None
+
 
 ELEMENTS = ['title', 'overview', 'originaltitle']
 
-def get_ET_trees(source):
+def get_ET_trees(source, overwrite=False):
     """_summary_
 
     Args:
@@ -67,7 +72,8 @@ def get_ET_trees(source):
         elif SIF:
             try:
                 (SIF / row[1]).mkdir(exist_ok=True)
-                tree.write((SIF / row[1]) / 'set.xml', encoding='utf-8', xml_declaration=True)
+                if overwrite or not ((SIF / row[1]) / 'set.xml').is_file():
+                    tree.write((SIF / row[1]) / 'set.xml', encoding='utf-8', xml_declaration=True)
             except IOError as err:
                 print(f'Could not write set.xml file due to {err}')
 
@@ -80,13 +86,14 @@ def export_set_data(sif:Path=None, csv_file:Path=None):
             print(f'script.export_set export_set_data csv: {source_reader}', xbmc.LOGDEBUG)
             get_ET_trees(source_reader)
     if sif:
+        replace_xml = xbmcgui.Dialog().yesno(ADDON_ID, ADDON.getLocalizedString(32004))
         response = simplejson.loads(xbmc.executeJSONRPC(
                 '{"jsonrpc":"2.0", "method":"VideoLibrary.GetMovieSets", "params":{"properties":["title", "plot"]}, "id":1}'))
         if ('result' in response) and ('sets' in response['result']):
             lib_rows = []
             for i in range(response['result']['limits']['total']):
                 lib_rows.append([0, response['result']['sets'][i].get('label', ''), response['result']['sets'][i].get('plot', '')])
-            get_ET_trees(lib_rows)
+            get_ET_trees(lib_rows, overwrite=replace_xml)
 
 if __name__ == '__main__':
     if SIF:
