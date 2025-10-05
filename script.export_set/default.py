@@ -22,6 +22,7 @@
 import csv
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from pathvalidate import sanitize_filepath
 
 import simplejson
 import xbmc
@@ -67,17 +68,19 @@ def get_ET_trees(source, overwrite=False):
         ET.indent(tree, space="\t", level=0)
         if CSV:
             try:
-                (CSV_MSIF / row[1]).mkdir(exist_ok=True)
-                tree.write(CSV_MSIF / row[1] / 'set.nfo', encoding='utf-8', xml_declaration=True)
+                sani_path = sanitize_filepath((CSV_MSIF / row[1].replace('/', '_')), replacement_text='_', platform="auto", normalize=False)
+                sani_path.mkdir(exist_ok=True)
+                tree.write(sani_path / 'set.nfo', encoding='utf-8', xml_declaration=True)
             except IOError as err:
                 print(f'Could not write set.nfo file from row {row} due to {err}')
             except IndexError:
                 print(f'Index error for row {row}')
         elif MSIF:
             try:
-                (MSIF / row[1]).mkdir(exist_ok=True)
-                if overwrite or not ((MSIF / row[1]) / 'set.nfo').is_file():
-                    tree.write((MSIF / row[1]) / 'set.nfo', encoding='utf-8', xml_declaration=True)
+                sani_path = sanitize_filepath((MSIF / row[1].replace('/', '_')), replacement_text='_', platform="auto", normalize=False)
+                sani_path.mkdir(exist_ok=True)
+                if overwrite or not (sani_path / 'set.nfo').is_file():
+                    tree.write(sani_path / 'set.nfo', encoding='utf-8', xml_declaration=True)
             except IOError as err:
                 print(f'Could not write set.nfo file due to {err}')
 
