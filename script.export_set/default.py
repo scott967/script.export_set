@@ -44,23 +44,35 @@ Raises:
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from lib.pathvalidate import sanitize_filepath
+from urllib.parse import urlencode, urlparse
 
 import simplejson
+#import smbclient
 import xbmc
 import xbmcaddon
 import xbmcgui
+from lib.pathvalidate import sanitize_filepath
 
 MSIF = None
 ADDON = xbmcaddon.Addon()
 ADDON_ID = ADDON.getAddonInfo('id')
+network = False
 
 # get the Kodi user MSIF from Kodi settings.  If successful MSIF is valid Path object.
 # Note:  Path class will return '.' as path if no argument provided in init.
 try:
-    MSIF = Path(simplejson.loads(xbmc.executeJSONRPC(
+    xbmc.log(f'{ADDON_ID} json result {simplejson.loads(xbmc.executeJSONRPC(
+                '{"jsonrpc":"2.0", "method":"Settings.GetSettingValue", "params":{"setting":"videolibrary.moviesetsfolder"}, "id":1}'))['result']['value']}')
+    parsed_url = urlparse(simplejson.loads(xbmc.executeJSONRPC(
                 '{"jsonrpc":"2.0", "method":"Settings.GetSettingValue", "params":{"setting":"videolibrary.moviesetsfolder"}, "id":1}'))['result']['value'])
-    if (MSIF is None) or (not MSIF.name):
+    xbmc.log(f'{ADDON_ID} parsed_url {parsed_url}')
+    if parsed_url.scheme == ('smb' or 'nfs'):
+        network = True
+        MSIF = Path(parsed_url.path)
+    else:
+        MSIF = Path(simplejson.loads(xbmc.executeJSONRPC(
+                '{"jsonrpc":"2.0", "method":"Settings.GetSettingValue", "params":{"setting":"videolibrary.moviesetsfolder"}, "id":1}'))['result']['value'])
+    if (MSIF is None) or (MSIF == Path('.')):
         xbmcgui.Dialog().ok(ADDON_ID, ADDON.getLocalizedString(32001))
         MSIF = None
         xbmc.log(f'{ADDON_ID} invalid or no movie set info folder',
@@ -94,12 +106,21 @@ def get_ET_trees(source: list[list], overwrite=False):
         tree = ET.ElementTree(root)
         ET.indent(tree, space="\t", level=0)
         try:
-            sani_path: Path = sanitize_filepath(
-                (MSIF / row[1].replace('/', '_')), replacement_text='_', platform="auto", normalize=False)
-            sani_path.mkdir(exist_ok=True)  # Path objects don't allow "/"
-            if overwrite or not (sani_path / 'set.nfo').is_file():
-                tree.write(sani_path / 'set.nfo',
-                           encoding='utf-8', xml_declaration=True)
+            if not network:  #use Path semantics
+                sani_path:Path = MSIF / sanitize_filepath(
+                    Path(row[1].replace('/', '_')), replacement_text='_', platform="auto", normalize=False)
+                xbmc.log(f'{ADDON_ID} the sani path is {sani_path} and exists {(sani_path).exists()}')
+                (sani_path).mkdir(parents=True, exist_ok=True)  # Path objects don't allow "/"
+                xbmc.log(f'{ADDON_ID} the sani path is {sani_path} and exists after mkdir {(sani_path).exists()}')
+                if overwrite or not (sani_path / 'set.nfo').is_file():
+                    tree.write(sani_path / 'set.nfo',
+                            encoding='utf-8', xml_declaration=True)
+                    xbmc.log(f'{ADDON_ID} wrote file {sani_path / 'set.nfo'} and exists {(sani_path / 'set.nfo').exists()}')
+            else:  # use url string semantics
+                url_path:str = urlencode((parsed_url.scheme, parsed_url.netloc, (parsed_url.path + sanitize_filepath(
+                    Path(row[1].replace('/', '_')), replacement_text='_', platform="auto", normalize=False)), '', '', ''))
+                xbmc.log(f'{ADDON_ID} url_path {url_path}')
+
         except IOError as err:
             xbmc.log(f'{ADDON_ID} Could not write set.nfo file due to {err}')
 
