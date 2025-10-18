@@ -114,8 +114,8 @@ def get_ET_trees(source: list[list], overwrite=False):
                 xbmc.log(f'{ADDON_ID} the sani path is {sani_path} and exists after mkdir {(sani_path).exists()}')
                 if overwrite or not (sani_path / 'set.nfo').is_file():
                     tree.write(sani_path / 'set.nfo',
-                            encoding='utf-8', xml_declaration=True)
-                    xbmc.log(f'{ADDON_ID} wrote file {sani_path / 'set.nfo'} and exists {(sani_path / 'set.nfo').exists()}')
+                            encoding='utf-8', xml_declaration=True, short_empty_elements=False)
+                    xbmc.log(f'{ADDON_ID} wrote file {sani_path / "set.nfo"} and exists {(sani_path / "set.nfo").exists()}')
             else:  # use url string semantics
                 url_path:str = urlencode((parsed_url.scheme, parsed_url.netloc, (parsed_url.path + sanitize_filepath(
                     Path(row[1].replace('/', '_')), replacement_text='_', platform="auto", normalize=False)), '', '', ''))
